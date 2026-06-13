@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "server/index.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/server/index.js" },
+    { "src": "/(.*)", "dest": "/dist/$1" }
+  ],
+  "env": {
+    "ELEVENLABS_API_KEY": "@elevenlabs_api_key",
+    "OPENAI_API_KEY": "@openai_api_key",
+    "DGX_API_KEY": "YAHUAH"
+  }
+}
