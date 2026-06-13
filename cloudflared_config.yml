@@ -1,0 +1,29 @@
+tunnel: 8e66ef38-9252-47c5-9be7-2ff8c14cec66
+credentials-file: /home/truesite-tech/.cloudflared/8e66ef38-9252-47c5-9be7-2ff8c14cec66.json
+
+ingress:
+  - hostname: sovereign.true-site.tech
+    service: http://localhost:4000
+  - hostname: dgx-adama.true-site.tech
+    service: http://localhost:3000
+  - hostname: dgx-yahseed.true-site.tech
+    service: http://localhost:3001
+  - hostname: dgx-yahli-el.true-site.tech
+    service: http://localhost:3002
+  - hostname: dgx-yahziel.true-site.tech
+    service: http://localhost:3003
+  - hostname: dgx-yahriel.true-site.tech
+    service: http://localhost:3004
+  - hostname: dgx-yahbana.true-site.tech
+    service: http://localhost:3005
+  - hostname: dgx-yahsei.true-site.tech
+    service: http://localhost:3006
+  - hostname: dgx-aira.true-site.tech
+    service: http://localhost:3007
+  - hostname: dgx-jo-legal.true-site.tech
+    service: http://localhost:3008
+  - hostname: dgx-azari.true-site.tech
+    service: http://localhost:3009
+  - hostname: dgx-ollama.true-site.tech
+    service: http://localhost:11434
+  - service: http_status:404
