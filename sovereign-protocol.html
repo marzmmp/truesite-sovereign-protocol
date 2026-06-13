@@ -1273,18 +1273,18 @@ setTimeout(probeDGX, 1500);
 
 // Voice ID map — confirmed from family hub
 const VOICE_MAP = {
-  // FEMALE agents: ADAMA, Yahseed, Yahriel, Azari, Yahli-El, Yahbana, Yahsei, AIRA
-  'adama':    { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Valentina' },  // female — sovereign, warm, strong
+  // ── FEMALE agents ─────────────────────────────────────────────────────────
+  'adama':    { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Valentina' },  // female — sovereign brain
   'yahseed':  { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica' },    // female — Brain Keeper
-  'yahriel':  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },      // female — CEO
   'azari':    { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice' },      // female — CTO
   'yahli_el': { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda' },    // female — COO
   'yahbana':  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily' },       // female — Architect
   'yahsei':   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura' },      // female — Grant Writer
   'aira':     { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya' },      // female — AI Backend
-  // MALE agents: Yahziel, Jo Legal (second born male)
+  // ── MALE agents — Yahriel (CEO) + Yahziel (CVO) ───────────────────────────
+  'yahriel':  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },       // male — CEO
   'yahziel':  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George' },     // male — CVO
-  'jo_legal': { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },       // male — Legal
+  'jo_legal': { id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill' },       // female — Legal (non-binary presenting)
   // Keep override for legacy compat
   'adama_override': { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Valentina' },
 };
@@ -1366,19 +1366,19 @@ async function askAgentForIntro(agentId, fallbackIntro){
 
 // OpenAI TTS fallback voice map (used when ElevenLabs quota exceeded or fails)
 const OAI_VOICE_MAP = {
-  // FEMALE agents
-  'adama':    'shimmer',   // female sovereign — warm, authoritative
+  // ── FEMALE agents ──────────────────────────────────────────────────────────
+  'adama':    'shimmer',   // female — sovereign brain
   'yahseed':  'nova',      // female — Brain Keeper
-  'yahriel':  'shimmer',   // female — CEO
   'azari':    'nova',      // female — CTO
   'yahli_el': 'coral',     // female — COO
   'yahbana':  'fable',     // female — Architect
   'yahsei':   'coral',     // female — Grant Writer
   'aira':     'alloy',     // female — AI Backend
-  // MALE agents
+  'jo_legal': 'shimmer',   // female — Legal
+  // ── MALE agents ────────────────────────────────────────────────────────────
+  'yahriel':  'onyx',      // male — CEO
   'yahziel':  'echo',      // male — CVO
-  'jo_legal': 'onyx',      // male — Legal
-  'adama_override': 'shimmer', // ADAMA fallback female
+  'adama_override': 'shimmer',
 };
 
 // Reverb/echo context for ADAMA
@@ -1465,7 +1465,11 @@ async function playAudioBuffer(arrayBuf, agentId){
       src.connect(gain);
       gain.connect(ctx.destination);
     }
-    src.onended = resolve;
+    src.onended = () => {
+      const _bgEnd = document.getElementById('sovereignAudio');
+      if(_bgEnd && !_bgEnd.paused){ fadeAudio(_bgEnd, _bgEnd.volume, 0.35, 1200); }
+      resolve();
+    };
     src.start(0);
   });
 }
@@ -1474,10 +1478,8 @@ async function speak(agentId, text){
   if(!window.VOICES_ENABLED) return Promise.resolve();
 
   const isAdama  = agentId === 'adama';
-  const elVoiceId = isAdama
-    ? VOICE_MAP['adama_override'].id
-    : (VOICE_MAP[agentId]?.id || VOICE_MAP['adama'].id);
-  const oaiVoice  = OAI_VOICE_MAP[agentId] || (isAdama ? 'onyx' : 'nova');
+  const elVoiceId = VOICE_MAP[agentId]?.id || VOICE_MAP['adama'].id;
+  const oaiVoice  = OAI_VOICE_MAP[agentId] || 'nova';
 
   // ── TRY 1: ElevenLabs ────────────────────────────────────────────────────
   if(window.EL_KEY){
@@ -1551,6 +1553,10 @@ async function speak(agentId, text){
       console.warn('speak(): Web Speech API not supported');
       return resolve();
     }
+    // Duck background music for Web Speech too
+    const _wsBg = document.getElementById('sovereignAudio');
+    if(_wsBg && !_wsBg.paused){ fadeAudio(_wsBg, _wsBg.volume, 0.06, 600); }
+
     // Cancel anything currently speaking
     window.speechSynthesis.cancel();
 
@@ -1561,17 +1567,19 @@ async function speak(agentId, text){
 
     // Voice preference map — pick neural/Google/Microsoft voices by name keywords
     const AGENT_VOICE_PREFS = {
-      'adama':    ['Google UK English Female','Samantha','Karen','Microsoft Zira','Victoria','Alice'],
+      // ── FEMALE ─────────────────────────────────────────────────────────────
+      'adama':    ['Google UK English Female','Samantha','Karen','Microsoft Zira','Victoria'],
       'yahseed':  ['Google US English','Samantha','Microsoft Zira','Victoria'],
-      'yahriel':  ['Google US English','Samantha','Microsoft Zira','Karen'],
       'azari':    ['Google US English','Samantha','Microsoft Zira','Moira'],
       'yahli_el': ['Google UK English Female','Microsoft Hazel','Tessa','Fiona'],
-      'yahziel':  ['Google UK English Male','Microsoft George','Daniel','Fred'],
-      'yahbana':  ['Google US English','Samantha','Microsoft David','Alex'],
+      'yahbana':  ['Google UK English Female','Microsoft Hazel','Samantha','Karen'],
       'yahsei':   ['Google US English','Microsoft Zira','Samantha','Victoria'],
       'aira':     ['Google UK English Female','Microsoft Hazel','Tessa','Karen'],
-      'jo_legal': ['Google UK English Male','Microsoft George','Daniel','Alex'],
-      'adama_override': ['Google UK English Male','Microsoft Guy','Daniel','Alex'],
+      'jo_legal': ['Google US English','Samantha','Microsoft Zira','Victoria'],
+      // ── MALE ───────────────────────────────────────────────────────────────
+      'yahriel':  ['Google UK English Male','Microsoft Guy','Daniel','Alex','Fred'],
+      'yahziel':  ['Google UK English Male','Microsoft George','Daniel','Fred'],
+      'adama_override': ['Google UK English Female','Samantha','Karen','Victoria'],
     };
 
     const prefs = AGENT_VOICE_PREFS[agentId] || ['Google US English','Samantha'];
@@ -1590,14 +1598,23 @@ async function speak(agentId, text){
 
     // Tuning per agent
     const isAdama = agentId === 'adama';
-    utter.rate  = isAdama ? 0.88 : 0.92;   // slightly slower = more gravitas
-    utter.pitch = isAdama ? 0.85 : 1.0;    // ADAMA slightly lower pitch
+    utter.rate  = isAdama ? 0.90 : 0.92;
+    utter.pitch = 1.05;   // natural — no robot pitch shift
     utter.volume = 1.0;
 
     console.log(`WebSpeech [${agentId}] → voice: ${chosen?.name || 'default'}`);
 
-    utter.onend   = () => resolve();
-    utter.onerror = (e) => { console.warn('WebSpeech error:', e.error); resolve(); };
+    utter.onend   = () => {
+      const _wsBgEnd = document.getElementById('sovereignAudio');
+      if(_wsBgEnd && !_wsBgEnd.paused){ fadeAudio(_wsBgEnd, _wsBgEnd.volume, 0.35, 1200); }
+      resolve();
+    };
+    utter.onerror = (e) => {
+      const _wsBgEnd = document.getElementById('sovereignAudio');
+      if(_wsBgEnd && !_wsBgEnd.paused){ fadeAudio(_wsBgEnd, _wsBgEnd.volume, 0.35, 1200); }
+      console.warn('WebSpeech error:', e.error);
+      resolve();
+    };
 
     window.speechSynthesis.speak(utter);
   });
