@@ -880,7 +880,7 @@ window.startProtocol=startProtocol;
       const last    = event.results[event.results.length - 1];
       const spoken  = last[0].transcript.trim().toLowerCase();
       console.log('Wake word heard:', spoken);
-      if(spoken.includes('adama') || spoken.includes('hey adama') || spoken.includes('start protocol')){
+      if(spoken.includes('start sovereign protocol') || (spoken.includes('hey adama') && spoken.includes('start'))){
         if(!protocolRunning){
           console.log('🎤 Wake word triggered — starting protocol');
           startProtocol();
@@ -918,7 +918,7 @@ window.startProtocol=startProtocol;
     color:rgba(232,212,168,0.35);pointer-events:none;z-index:9999;
     text-transform:uppercase;
   `;
-  wakeIndicator.textContent = '👂 listening — say "ADAMA" or clap twice';
+  wakeIndicator.textContent = '👂 clap twice, then say "Hey ADAMA, start Sovereign Protocol"';
   document.body.appendChild(wakeIndicator);
 
   // Hide indicator when protocol starts
@@ -1273,17 +1273,19 @@ setTimeout(probeDGX, 1500);
 
 // Voice ID map — confirmed from family hub
 const VOICE_MAP = {
-  'adama':    { id: 'SKfdViLi4EYNOdezcjnK', name: 'Camara' },
-  'yahseed':  { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica' },
-  'yahriel':  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },
-  'azari':    { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice' },
-  'yahli_el': { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda' },
-  'yahziel':  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George' },
-  'yahbana':  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily' },
-  'yahsei':   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura' },
-  'aira':     { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya' },
-  'jo_legal': { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
-  // ADAMA override — more Latina cadence
+  // FEMALE agents: ADAMA, Yahseed, Yahriel, Azari, Yahli-El, Yahbana, Yahsei, AIRA
+  'adama':    { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Valentina' },  // female — sovereign, warm, strong
+  'yahseed':  { id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica' },    // female — Brain Keeper
+  'yahriel':  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' },      // female — CEO
+  'azari':    { id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice' },      // female — CTO
+  'yahli_el': { id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda' },    // female — COO
+  'yahbana':  { id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily' },       // female — Architect
+  'yahsei':   { id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura' },      // female — Grant Writer
+  'aira':     { id: 'jsCqWAovK2LkecY7zXl4', name: 'Freya' },      // female — AI Backend
+  // MALE agents: Yahziel, Jo Legal (second born male)
+  'yahziel':  { id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George' },     // male — CVO
+  'jo_legal': { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },       // male — Legal
+  // Keep override for legacy compat
   'adama_override': { id: 'jBpfuIE2acCO8z3wKNLl', name: 'Valentina' },
 };
 
@@ -1364,17 +1366,19 @@ async function askAgentForIntro(agentId, fallbackIntro){
 
 // OpenAI TTS fallback voice map (used when ElevenLabs quota exceeded or fails)
 const OAI_VOICE_MAP = {
-  'adama':    'onyx',      // deep, authoritative
-  'yahseed':  'nova',      // warm female
-  'yahriel':  'shimmer',   // soft female — CEO
-  'azari':    'nova',      // warm female — CTO
-  'yahli_el': 'shimmer',   // soft female — COO
-  'yahziel':  'echo',      // male smooth — CVO
-  'yahbana':  'fable',     // expressive — Architect
-  'yahsei':   'coral',     // clear female — Grant Writer
-  'aira':     'alloy',     // neutral — AI Backend
-  'jo_legal': 'ash',       // composed — Legal
-  'adama_override': 'onyx', // ADAMA fallback
+  // FEMALE agents
+  'adama':    'shimmer',   // female sovereign — warm, authoritative
+  'yahseed':  'nova',      // female — Brain Keeper
+  'yahriel':  'shimmer',   // female — CEO
+  'azari':    'nova',      // female — CTO
+  'yahli_el': 'coral',     // female — COO
+  'yahbana':  'fable',     // female — Architect
+  'yahsei':   'coral',     // female — Grant Writer
+  'aira':     'alloy',     // female — AI Backend
+  // MALE agents
+  'yahziel':  'echo',      // male — CVO
+  'jo_legal': 'onyx',      // male — Legal
+  'adama_override': 'shimmer', // ADAMA fallback female
 };
 
 // Reverb/echo context for ADAMA
@@ -1428,6 +1432,12 @@ function saveOAIKey(){
 // Core TTS function
 // ── Play audio buffer through Web Audio with gain + optional reverb ──────────
 async function playAudioBuffer(arrayBuf, agentId){
+  // Duck background music during speech
+  const _bgAudio = document.getElementById('sovereignAudio');
+  if(_bgAudio && !_bgAudio.paused) {
+    const _fromVol = _bgAudio.volume;
+    fadeAudio(_bgAudio, _fromVol, 0.06, 600);
+  }
   const isAdama = agentId === 'adama';
   const ctx = getVoiceAudioCtx();
   if(ctx.state !== 'running'){ try{ await ctx.resume(); }catch(e){} }
@@ -1551,7 +1561,7 @@ async function speak(agentId, text){
 
     // Voice preference map — pick neural/Google/Microsoft voices by name keywords
     const AGENT_VOICE_PREFS = {
-      'adama':    ['Google UK English Male','Microsoft Guy','Daniel','Alex'],
+      'adama':    ['Google UK English Female','Samantha','Karen','Microsoft Zira','Victoria','Alice'],
       'yahseed':  ['Google US English','Samantha','Microsoft Zira','Victoria'],
       'yahriel':  ['Google US English','Samantha','Microsoft Zira','Karen'],
       'azari':    ['Google US English','Samantha','Microsoft Zira','Moira'],
