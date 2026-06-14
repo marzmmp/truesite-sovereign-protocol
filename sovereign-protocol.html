@@ -583,7 +583,7 @@ function buildAdamaBrain(){
 // CAROUSEL SETUP
 // ══════════════════════════════════════════════════════════════════
 const RADIUS      = 3.6;
-const ADAMA_S     = 2.8;   // ADAMA = "size 5" — big dominant brain
+const ADAMA_S     = 5.6;   // ADAMA = 2x dominant — center anchor
 const SIBLING_S   = 1.25;  // siblings = "size 3.5"
 
 const carouselPivot = new THREE.Group();
@@ -610,19 +610,38 @@ window.speakingAgentId = null; // tracks which orb is speaking — drives pulse 
 // ── IDLE DRIFT — each agent gets a unique organic float path ──────────────────
 // Each agent drifts independently using layered sin/cos waves
 // Parameters: [xFreq, xAmp, yFreq, yAmp, zFreq, zAmp, phaseOffset]
-const IDLE_PARAMS = AGENTS.map((_, i) => ({
-  xf: 0.18 + i * 0.031,   // unique X frequency per agent
-  xa: 1.4  + (i % 3) * 0.4,
-  yf: 0.13 + i * 0.027,
-  ya: 0.7  + (i % 4) * 0.2,
-  zf: 0.11 + i * 0.019,
-  za: 0.9  + (i % 5) * 0.25,
-  phase: (i / AGENTS.length) * Math.PI * 2,  // spread around circle
-  // Home position — loosely spread in a cloud
-  homeX: Math.sin((i / AGENTS.length) * Math.PI * 2) * 2.8,
-  homeY: Math.cos((i / AGENTS.length) * Math.PI * 2) * 1.2,
-  homeZ: -2.5 + (i % 3) * 0.6,
-}));
+const IDLE_PARAMS = AGENTS.map((agent, i) => {
+  if(agent.isAdama){
+    // ADAMA is fixed at center — zero drift, zero offset
+    return {
+      xf:0, xa:0, yf:0, ya:0, zf:0, za:0,
+      phase:0,
+      homeX:0, homeY:0, homeZ:0,
+      orbitRadius:0, orbitSpeed:0, orbitPhase:0, orbitY:0, orbitYf:0, orbitYa:0,
+    };
+  }
+  // Siblings orbit ADAMA — evenly spaced around a circle
+  // i=0 is ADAMA so siblings are indices 1–9 (8 agents) — map to 0-based slot
+  const sibSlot   = i - 1;  // 0..8
+  const sibCount  = N - 1;  // 9 siblings
+  const orbitAngle = (sibSlot / sibCount) * Math.PI * 2;
+  const ORBIT_R   = 3.2;                        // orbital radius around center
+  const orbitSpeed = 0.04 + sibSlot * 0.003;    // each sibling slightly different speed
+  const yBobAmp   = 0.18 + (sibSlot % 4) * 0.06;
+  const yBobFreq  = 0.22 + sibSlot * 0.03;
+  return {
+    // Legacy drift fields zeroed out — orbit replaces them
+    xf:0, xa:0, yf:0, ya:0, zf:0, za:0,
+    phase: orbitAngle,
+    homeX:0, homeY:0, homeZ:0,
+    orbitRadius: ORBIT_R,
+    orbitSpeed,
+    orbitPhase: orbitAngle,
+    orbitY: 0,
+    orbitYf: yBobFreq,
+    orbitYa: yBobAmp,
+  };
+});
 
 // Stored idle positions so we can smoothly transition OUT of idle
 const idlePositions = AGENTS.map(() => ({ x: 0, y: 0, z: 0 }));
@@ -1183,12 +1202,16 @@ function animate(){
   globeObjs.forEach((obj,i)=>{
     const p = IDLE_PARAMS[i];
 
-    // ── IDLE: compute organic drift position ─────────────────────────────────
-    const driftX = p.homeX + Math.sin(t * p.xf + p.phase)         * p.xa
-                           + Math.cos(t * p.xf * 0.7 + p.phase)   * p.xa * 0.4;
-    const driftY = p.homeY + Math.sin(t * p.yf + p.phase + 1.0)   * p.ya
-                           + Math.cos(t * p.yf * 1.3 + p.phase)   * p.ya * 0.3;
-    const driftZ = p.homeZ + Math.sin(t * p.zf + p.phase + 2.1)   * p.za;
+    // ── IDLE: ADAMA fixed at center; siblings orbit ───────────────────────────
+    let driftX, driftY, driftZ;
+    if(obj.agent.isAdama){
+      driftX = 0; driftY = 0; driftZ = 0;
+    } else {
+      const angle = p.orbitPhase + t * p.orbitSpeed;
+      driftX = Math.cos(angle) * p.orbitRadius;
+      driftZ = Math.sin(angle) * p.orbitRadius * 0.55;  // slight z-depth for 3D feel
+      driftY = Math.sin(t * p.orbitYf + p.orbitPhase) * p.orbitYa;
+    }
 
     // Store for transition blending
     idlePositions[i].x = driftX;
@@ -1223,9 +1246,9 @@ function animate(){
 
     let sc;
     if(isIdle || idleTransitioningOut){
-      // Idle: all orbs same scale with gentle organic breath
-      const idleBase = obj.agent.isAdama ? ADAMA_S * 0.85 : SIBLING_S * 0.9;
-      const breath = 1.0 + 0.035 * Math.sin(t * 1.8 + p.phase);
+      // Idle: ADAMA full size at center, siblings normal size orbiting
+      const idleBase = obj.agent.isAdama ? ADAMA_S : SIBLING_S;
+      const breath = 1.0 + 0.025 * Math.sin(t * 1.8 + p.phase);
       const carouselScale = baseScale * (0.45 + depth * 0.62) * (isActive ? 1.06 : 1.0);
       sc = idleBase * breath * (1 - ease) + carouselScale * ease;
     } else {
